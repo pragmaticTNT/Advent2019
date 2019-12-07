@@ -1,5 +1,40 @@
 import fileinput
 
+class Node():
+    def __init__(self, value):
+        self.value      = value
+        self.parent     = None
+        self.children   = []
+        self.orbit      = 0
+    def sizeOrbit(self):
+        if len(self.children) == 0:
+            self.orbit = 0
+        else:
+            orbit = [c.sizeOrbit()+1 for c in self.children]
+            self.orbit = sum(orbit)
+        return self.orbit
+
+class Tree():
+    def __init__(self, head, edges):
+        nodeList = {}
+        for u,v in edges:
+            if u not in nodeList:
+                nodeList[u] = Node(u)
+            if v not in nodeList:
+                nodeList[v] = Node(v)
+            nodeList[v].parent = nodeList[u]
+            nodeList[u].children.append(nodeList[v])
+        self.head = nodeList[head]
+        self.nodeList = nodeList
+    def nOrbits(self):
+        self.head.sizeOrbit()
+        nNodes = 0
+        for n in self.nodeList:
+            nPtr = self.nodeList[n]
+            ##print(n, nPtr.orbit)
+            nNodes += nPtr.orbit
+        return nNodes
+
 def fuelRequired(mass):
     fuel = mass//3 - 2
     totalFuel = fuel
@@ -22,11 +57,12 @@ def day2(fileName):
     with fileinput.input(fileName) as f:
         code = f.readline()
         tape = [int(c) for c in code.split(",")]
+    ##print(tape)
 
-    n = len(tape)
     c = 0
     while tape[c] != 99:
         instr = tape[c]
+        ##print(instr)
         mode  = -1
         if instr > 99:
             mode    = instr // 100
@@ -53,28 +89,46 @@ def day2(fileName):
             tape[tape[c+1]] = 5
             c += 2
         if instr == 4:
-            print(tape[tape[c+1]])
+            if mode < 0:
+                print(tape[tape[c+1]])
+            else:
+                s = tape[c+1] if mode % 10 else tape[tape[c+1]]
+                print(s)
             c += 2
         if instr == 5:
             if mode < 0:
-                c = tape[tape[c+2]] if tape[tape[c+1]] else c + 3
+                c = tape[tape[c+2]] if tape[tape[c+1]] else (c + 3)
             else:
                 s = tape[c+1] if mode % 10 else tape[tape[c+1]]
                 mode = mode // 10
                 t = tape[c+2] if mode % 10 else tape[tape[c+2]]
-                c = t if s else c + 3
+                c = t if s else (c + 3)
         if instr == 6:
             if mode < 0:
-                c = tape[tape[c+2]] if tape[tape[c+1]] == 0 else c + 3
+                c = tape[tape[c+2]] if tape[tape[c+1]] == 0 else (c + 3)
             else:
                 s = tape[c+1] if mode % 10 else tape[tape[c+1]]
                 mode = mode // 10
                 t = tape[c+2] if mode % 10 else tape[tape[c+2]]
-                c = t if s == 0 else c + 3
+                c = t if s == 0 else (c + 3)
         if instr == 7:
-            do
+            if mode < 0:
+                tape[tape[c+3]] = tape[tape[c+1]] < tape[tape[c+2]]
+            else:
+                s = tape[c+1] if mode % 10 else tape[tape[c+1]]
+                mode = mode // 10
+                t = tape[c+2] if mode % 10 else tape[tape[c+2]]
+                tape[tape[c+3]] = s < t
+            c += 4
         if instr == 8:
-            do
+            if mode < 0:
+                tape[tape[c+3]] = tape[tape[c+1]] == tape[tape[c+2]]
+            else:
+                s = tape[c+1] if mode % 10 else tape[tape[c+1]]
+                mode = mode // 10
+                t = tape[c+2] if mode % 10 else tape[tape[c+2]]
+                tape[tape[c+3]] = s == t
+            c += 4
 
 def day3(fileName):
     with fileinput.input(fileName) as f:
@@ -188,10 +242,19 @@ def day4():
                 count += 1
     print(count)
 
+def day6(fileName):
+    system = []
+    with fileinput.input(fileName) as f:
+        for line in f:
+            system.append(line.rstrip().split(")"))
+    ##print(system)
+    systemTree = Tree("COM", system)
+    print(systemTree.nOrbits())
+
 def main():
-    fileName = "day5-input.txt"
+    fileName = "day6-input.txt"
     ##fileName = "test.txt"
-    day2(fileName)
+    day6(fileName)
 
 if __name__ == "__main__":
     main()
