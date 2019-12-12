@@ -69,10 +69,9 @@ def getAddr(tape, mode, rel, c):
 def getVal(tape, mode, rel, c):
     return tape[getAddr(tape, mode, rel, c)]
 
-def intMachine(tape, inputs):
+def intMachine(tape, fnGetInput, fnSetOutput):
     c       = 0
     rel     = 0
-    iCounter= 0
     while tape[c] != 99:
         instr = tape[c]
         mode    = instr // 100
@@ -97,13 +96,13 @@ def intMachine(tape, inputs):
         if instr == 3:
             addr = getAddr(tape, mode, rel, c+1)
             ##print("Get input:", mode, rel, addr)
-            tape[addr] = inputs[iCounter]
-            iCounter += 1
+            tape[addr] = fnGetInput()
             c += 2
         if instr == 4:
             s = getVal(tape, mode, rel, c+1)
             c += 2
-            print(s)
+            fnSetOutput(s)
+            #print(s)
         if instr == 5:
             s = getVal(tape, mode%10, rel, c+1)
             mode //= 10
@@ -373,17 +372,73 @@ def day10(fileName):
             if sector[row][col] >= 0:
                 countAstroid(sector, row, col)
                 ##pSector(sector)
+    ##print(max(sum(sector, [])))
     maxRow  = [max(row) for row in sector]
     rInd    = maxRow.index(max(maxRow))
-    cInd    = sector[rInd].index(max(rInd))
-    ##print(max(sum(sector, [])))
+    cInd    = sector[rInd].index(max(sector[rInd]))
+
+    while c < 200:
+        row, col = findNext(sector, row, col, rInd, cInd)
+        c += 1
+    print(row*100 + col)
+
+def pMap(grid):
+    coordinates = grid.keys()
+    minRow      = min([r for r,c in coordinates])
+    minCol      = min([c for r,c in coordinates])
+    maxRow      = max([r for r,c in coordinates])
+    maxCol      = max([c for r,c in coordinates])
+    for r in range(minRow, maxRow+1):
+        for c in range(minCol, maxCol+1):
+            color = grid[(r,c)] if (r,c) in grid else 0
+            color = '#' if color else ' '
+            print(color, end="")
+        print()
+    print()
 
 def day11(fileName):
-    return
+    tape    = formatTape(fileName)
+    tape    += [0 for i in range(10*len(tape))]
+    grid    = {(0,0):1}
+    row     = 0
+    col     = 0
+    rDir    = 0
+    outMode = 0
+
+    def fnGetInput():
+        return grid[(row, col)] if (row, col) in grid else 0
+
+    def fnSetOutput(val):
+        nonlocal outMode
+        nonlocal row
+        nonlocal col
+        nonlocal rDir
+
+        if outMode == 0:
+            ## Black = 0, White = 1
+            grid[(row, col)] = val
+            outMode = True
+        else:
+            ## CCW = 0, CW = 1
+            rDir = (rDir + (-1)**(val+1)) % 4
+            if rDir == 0:
+                row -= 1
+            if rDir == 1:
+                col += 1
+            if rDir == 2:
+                row += 1
+            if rDir == 3:
+                col -= 1
+            outMode = False
+        return
+
+    intMachine(tape, fnGetInput, fnSetOutput)
+    ##print(len(grid))
+    pMap(grid)
 
 def main():
     fileName = "day10-input.txt"
-    fileName = "test.txt"
+    ##fileName = "test.txt"
     day10(fileName)
 
 if __name__ == "__main__":
