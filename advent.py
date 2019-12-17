@@ -1,6 +1,10 @@
 import fileinput
 import itertools as it
 import math
+import heapq
+import time as tm
+import os
+clear = lambda: os.system('clear')
 
 class Node():
     def __init__(self, value):
@@ -140,6 +144,8 @@ def formatTape(fileName):
     with fileinput.input(fileName) as f:
         code = f.readline()
         tape = [int(c) for c in code.split(",")]
+    ## May consider making the tape length dynamic
+    tape += [0 for i in range(len(tape)*10)]
     return tape
 
 def day1(fileName):
@@ -328,6 +334,12 @@ def day9(fileName):
     tape += [0 for i in range(len(tape)*100)]
     intMachine(tape, [2])
 
+def gcdCoord(r,c):
+    rcGcd = math.gcd(r, c)
+    r //= rcGcd
+    c //= rcGcd
+    return (r, c)
+
 def countAstroid(sector, row, col):
     width   = len(sector)
     length  = len(sector[0])
@@ -344,9 +356,7 @@ def countAstroid(sector, row, col):
                 sector[r][c] += 1
                 rowGap = r - row
                 colGap = c - col
-                rcGcd = math.gcd(rowGap, colGap)
-                rowGap //= rcGcd
-                colGap //= rcGcd
+                (rowGap, colGap) = gcdCoord(rowGap, colGap)
                 rr = r
                 cc = c
                 while 0 <= rr < width and 0 <= cc < length:
@@ -367,22 +377,57 @@ def day10(fileName):
         for line in f:
             line = line.strip()
             sector.append([-1 if c=='.' else 0 for c in line])
-    for row in range(len(sector)):
-        for col in range(len(sector[0])):
+    m = len(sector)
+    n = len(sector[0])
+    for row in range(m):
+        for col in range(n):
             if sector[row][col] >= 0:
                 countAstroid(sector, row, col)
                 ##pSector(sector)
     ##print(max(sum(sector, [])))
+
+    ## ===> PART2: Detecting 200th Astroid
+    print("Starting Part2...")
+    def fnGetSlope(l):
+        eps     = 0.0001
+        r,c     = l[0]
+        quad = ((c>0)&(r<=0)) + 2*((c<=0)&(r<0)) + 3*((c<0)&(r>=0))
+        slope = abs(r)/(abs(c)+eps) if quad%2 else abs(c)/(abs(r)+eps)
+        return (quad, slope)
+
     maxRow  = [max(row) for row in sector]
     rInd    = maxRow.index(max(maxRow))
     cInd    = sector[rInd].index(max(sector[rInd]))
+    print("Tower location:", rInd, cInd)
+    sector[rInd][cInd] = -1
 
-    while c < 200:
-        row, col = findNext(sector, row, col, rInd, cInd)
-        c += 1
-    print(row*100 + col)
+    count   = 0
+    bet     = 200
+    grid    = {}
+    (row, col) = (0,0)
+    for i in range(m):
+        for j in range(n):
+            if sector[i][j] >= 0:
+                (r, c) = (rInd-i, j-cInd)
+                (minR, minC) = gcdCoord(r,c)
+                if (minR, minC) in grid:
+                    grid[(minR, minC)].append((r,c))
+                else:
+                    grid[(minR, minC)] = [(r,c)]
+    grid = list(grid.values())
+    grid = [sorted(g, key=lambda p: abs(p[0])+abs(p[1])) for g in grid]
+    grid = sorted(grid, key=fnGetSlope)
+    i = 0
+    while count < bet:
+        while len(grid[i]) == 0:
+            i = (i + 1) % len(grid)
+        (row, col) = grid[i].pop(0)
+        count += 1
+        i = (i + 1) % len(grid)
+        ##print("Astroid", count, ':', rInd-row, cInd+col)
+    print((cInd+col)*100 + rInd - row)
 
-def pMap(grid):
+def pMap(grid, default, sym):
     coordinates = grid.keys()
     minRow      = min([r for r,c in coordinates])
     minCol      = min([c for r,c in coordinates])
@@ -390,15 +435,19 @@ def pMap(grid):
     maxCol      = max([c for r,c in coordinates])
     for r in range(minRow, maxRow+1):
         for c in range(minCol, maxCol+1):
-            color = grid[(r,c)] if (r,c) in grid else 0
-            color = '#' if color else ' '
-            print(color, end="")
+            inMap = (r,c) in grid
+            tile = default
+            if inMap:
+                if sym == None:
+                    tile = grid[(r,c)]
+                elif grid[(r,c)] in sym:
+                    tile  = sym[grid[(r,c)]]
+            print(tile, end="")
         print()
     print()
 
 def day11(fileName):
     tape    = formatTape(fileName)
-    tape    += [0 for i in range(10*len(tape))]
     grid    = {(0,0):1}
     row     = 0
     col     = 0
@@ -434,12 +483,322 @@ def day11(fileName):
 
     intMachine(tape, fnGetInput, fnSetOutput)
     ##print(len(grid))
-    pMap(grid)
+    pMap(grid, ' ', {'1':'#'})
+
+def elemwiseSum(list1, list2):
+    return [sum(p) for p in zip(list1, list2)]
+
+def velChange(pos):
+    larger  = [sum([u > v for u in pos]) for v in pos]
+    smaller = [sum([u < v for u in pos]) for v in pos]
+    return [l-s for l,s in zip(larger, smaller)]
+
+def simulate(stepLim, pos, vel):
+    step = 0
+    while step < stepLim:
+        newX = velChange(pos['x'])
+        newY = velChange(pos['y'])
+        newZ = velChange(pos['z'])
+        ## Adds new velocity to old
+        vel['x'] = elemwiseSum(vel['x'], newX)
+        vel['y'] = elemwiseSum(vel['y'], newY)
+        vel['z'] = elemwiseSum(vel['z'], newZ)
+        pos['x'] = elemwiseSum(pos['x'], vel['x'])
+        pos['y'] = elemwiseSum(pos['y'], vel['y'])
+        pos['z'] = elemwiseSum(pos['z'], vel['z'])
+        step += 1
+    return
+
+def previousState(p, v):
+    pos = p[:]
+    vel = v[:]
+    count = 0
+    history = set()
+    history.add((tuple(pos), tuple(vel)))
+    while True:
+        ##print("History:", history)
+        newVel  = velChange(pos)
+        vel     = elemwiseSum(vel, newVel)
+        pos     = elemwiseSum(pos, vel)
+        cur     = (tuple(pos), tuple(vel))
+        count += 1
+        if cur in history:
+            return count
+        history.add(cur)
+
+def lcm(a,b):
+    return (a*b)//math.gcd(a,b)
+
+def lcmList(l):
+    result = 1
+    for elem in l:
+        result = lcm(elem, result)
+    return result
+
+def day12(fileName):
+    pos     = {'x':[], 'y':[], 'z':[]}
+    vel     = {}
+    nMoons  = 4
+    step    = 0
+    stepLim = 1000
+    with fileinput.input(fileName) as f:
+        for line in f:
+            line = line.strip('<>\n')
+            line = line.split(',')
+            pos["x"].append(int(line[0].split('=')[-1]))
+            pos["y"].append(int(line[1].split('=')[-1]))
+            pos["z"].append(int(line[2].split('=')[-1]))
+    vel["x"] = [0 for i in range(4)]
+    vel["y"] = [0 for i in range(4)]
+    vel["z"] = [0 for i in range(4)]
+
+    ##simulate(stepLim, pos, vel)
+    ##energy = 0
+    ##for i in range(nMoons):
+    ##    iPos = [pos['x'][i], pos['y'][i], pos['z'][i]]
+    ##    iVel = [vel['x'][i], vel['y'][i], vel['z'][i]]
+    ##    pot = [abs(p) for p in iPos]
+    ##    kin = [abs(v) for v in iVel]
+    ##    energy += sum(pot)*sum(kin)
+    ##print(energy)
+
+    ## ===> PART2: Back Again
+    xLoop = previousState(pos['x'], vel['x'])
+    yLoop = previousState(pos['y'], vel['y'])
+    zLoop = previousState(pos['z'], vel['z'])
+    loop = [xLoop, yLoop, zLoop]
+    print(loop)
+    print(lcmList(loop))
+
+def findCoord(screen, val):
+    for cell in screen:
+        if screen[cell] == val:
+            return cell
+
+def day13(fileName):
+    tape    = formatTape(fileName)
+    x       = 0
+    y       = 0
+    count   = 0
+    screen  = {}
+    tiles   = {0:' ', 1:'#', 2:'.', 3:'_', 4:'o'}
+
+    def fnGetInput():
+        clear()
+        pMap(screen, ' ', tiles)
+        tm.sleep(0.1)
+
+        rBall, cBall        = findCoord(screen, 4)
+        rPaddle, cPaddle    = findCoord(screen, 3)
+        if cBall < cPaddle:
+            return -1
+        elif cBall > cPaddle:
+            return 1
+        return 0
+
+    def fnSetOutput(val):
+        nonlocal count
+        nonlocal x
+        nonlocal y
+        if count % 3 == 0:
+            x = val
+        elif count % 3 == 1:
+            y = val
+        else:
+            if x < 0:
+                print("Score:", val)
+            screen[(y,x)] = val
+        count = (count+1) % 3
+        return
+
+    ##intMachine(tape, fnGetInput, fnSetOutput)
+    ##nBlocks = sum([arcade[k] == 2 for k in arcade])
+    ##print(nBlocks)
+
+    ## ===> PART2: Playing the Game
+    tape[0] = 2
+    intMachine(tape, fnGetInput, fnSetOutput)
+
+def needOre(reactions, qOre):
+    orePerFuel  = 0
+    store = {}
+    stack = [('FUEL',qOre)]
+    while stack:
+        tar, quantity = stack.pop(-1)
+        #print(tar, quantity)
+        #print(store)
+        if tar == "ORE":
+            orePerFuel += quantity
+        else:
+            src     = reactions[tar]
+            qTar    = src[0]
+            if tar in store and store[tar] >= quantity:
+                store[tar] -= quantity
+            else:
+                quantity -= store[tar] if tar in store else 0
+                mult        = math.ceil(quantity/qTar)
+                store[tar]  = mult*qTar - quantity
+                for chem, qSrc in src[1]:
+                    stack.append((chem, mult*qSrc))
+    return orePerFuel
+
+def day14(fileName):
+    reactions   = {}
+
+    with fileinput.input(fileName) as f:
+        for line in f:
+            line = line.strip()
+            line = line.split(" => ")
+            src = line[0].split(',')
+            src = [chem.split() for chem in src]
+            src = [(chem[1], int(chem[0])) for chem in src]
+            quant, tar = line[1].split()
+            reactions[tar] = [int(quant), src]
+
+    orePerFuel  = needOre(reactions, 1)
+    print("Ore Per Fuel:", orePerFuel)
+
+    ## ==> PART2: Producing Fuel
+    totalOre    = 1000000000000
+    low         = totalOre // orePerFuel
+    ## the range is not [low, low+orePerFuel]
+    high        = low + totalOre
+    while high - low > 1:
+        mid = (high+low)//2
+        ok  = needOre(reactions, mid) <= totalOre
+        if ok:
+            low = mid
+        else:
+            high = mid
+    print("Fuel Produced:", low)
+
+def day15(fileName):
+    tape    = formatTape(fileName)
+    maze    = {(0,0):1}
+    direct  = {(1,0):1, (-1,0):2, (0,1):3, (0,-1):4}
+    stack   = []
+    row     = 0
+    col     = 0
+
+    def fnGetInput():
+        nonlocal row
+        nonlocal col
+        if (row-1, col) not in maze:
+            stack.append([(row,col), (row-1, col)])
+        elif (row+1, col) not in maze:
+            stack.append([(row,col), (row+1, col)])
+        elif (row, col-1) not in maze:
+            stack.append([(row,col), (row, col-1)])
+        elif (row, col+1) not in maze:
+            stack.append([(row,col), (row, col+1)])
+        if stack:
+            src, tar = stack[-1]
+            if tar in maze:
+                stack[-1]   = [tar, src]
+                src, tar    = tar, src
+            return direct[(src[0]-tar[0], src[1]-tar[1])]
+
+    def fnSetOutput(val):
+        nonlocal row
+        nonlocal col
+
+        src, tar = stack[-1]
+        if val == 0:
+            stack.pop()
+        else:
+            if tar in maze:
+                stack.pop()
+            row, col = tar
+        maze[tar] = val
+        ##print("val:{}, ({},{})".format(val, row, col))
+        return
+
+    intMachine(tape, fnGetInput, fnSetOutput)
+    for cell in maze:
+        if maze[cell] == 0:
+            maze[cell] = -3
+        elif maze[cell] == 1:
+            maze[cell] = -1
+        elif maze[cell] == 2:
+            print("Target:", cell)
+            maze[cell] = -2
+    ##stack.append([(0,0),-1])
+    ##row, col = (0,0)
+    ##count = 0
+    ##while maze[(row, col)] != -2:
+    ##    coord, count = stack.pop(0)
+    ##    row, col = coord
+    ##    ##print(row, col, count)
+    ##    if maze[coord] == -1:
+    ##        if coord == (0,0):
+    ##            count = 0
+    ##        maze[coord] = count
+    ##        count += 1
+    ##        stack.append([(row-1,col), count])
+    ##        stack.append([(row+1,col), count])
+    ##        stack.append([(row,col-1), count])
+    ##        stack.append([(row,col+1), count])
+    ####pMap(maze, ' ', None)
+    ##print("Move:", count)
+
+    ## ===> Part2: Flood Fill
+    target = (-20, -16)
+    maze[target] = -1
+    stack.append([target, -1])
+    row, col = target
+    count = 0
+    while stack:
+        coord, count = stack.pop(0)
+        row, col = coord
+        if maze[coord] == -1:
+            if coord == target:
+                count = 0
+            maze[coord] = count
+            stack.append([(row-1,col), count+1])
+            stack.append([(row+1,col), count+1])
+            stack.append([(row,col-1), count+1])
+            stack.append([(row,col+1), count+1])
+    ## The count is off by one since it explores
+    ## all cells adjacent to the last cell
+    print("Fill:", count-1)
+    return
+
+def ip(v1, v2):
+    return sum([a*b for a,b in zip(v1,v2)])
+
+def day16(fileName):
+    signal  = []
+    pattern = [0,1,0,-1]
+    offset  = 0
+    with fileinput.input(fileName) as f:
+        line = f.readline()
+        line = line.strip()
+        offset = int(line[0:7])
+        signal = [int(c) for c in line]
+
+    n = len(signal)
+    print("Length:", n)
+    print("Offset:", offset)
+    phase = 100
+    for i in range(phase):
+        newSignal = []
+        for i in range(1, n+1):
+            mask = []
+            mark = 0
+            while len(mask) <= n:
+                mask += [pattern[mark]]*i
+                mark = (mark+1) % 4
+            mask    = mask[1:(n+1)]
+            bit     = ip(signal, mask)
+            bit     = abs(bit) % 10
+            newSignal.append(bit)
+        signal = newSignal[:]
+    print(newSignal[0:8])
 
 def main():
-    fileName = "day10-input.txt"
+    fileName = "day16-input.txt"
     ##fileName = "test.txt"
-    day10(fileName)
+    day16(fileName)
 
 if __name__ == "__main__":
     main()
