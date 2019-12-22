@@ -123,8 +123,8 @@ def intMachine(tape, fnGetInput, fnSetOutput):
             t = getVal(tape, mode%10, rel, c+2)
             mode //= 10
             addr = getAddr(tape, mode, rel, c+3)
-            tape[addr] = s < t
             ##print("Op7:", s, t)
+            tape[addr] = s < t
             c += 4
         if instr == 8:
             s = getVal(tape, mode%10, rel, c+1)
@@ -795,10 +795,158 @@ def day16(fileName):
         signal = newSignal[:]
     print(newSignal[0:8])
 
+def compress(string):
+    count = 1
+    compStr = ""
+    for i in range(len(string)-1):
+        if string[i] == string[i+1]:
+            count += 1
+        else:
+            compStr += str(count) if count>1 else string[i]
+            compStr += ','
+            count = 1
+    compStr += str(count) if count>1 else string[-1]
+    return compStr
+
+def day17(fileName):
+    tape = formatTape(fileName)
+    view = {}
+    inputs = {}
+    inputs[0] = "A,A,B,C,B,C,B,C,A,C"
+    inputs[1] = "R,6,L,8,R,8"
+    inputs[2] = "R,4,R,6,R,6,R,4,R,4"
+    inputs[3] = "L,8,R,6,L,10,L,10"
+    inputs[4] = "n"
+    row, col = (0,0)
+    start   = (row, col)
+    step    = 0
+    count   = 0
+
+    def fnGetInput():
+        nonlocal step
+        nonlocal count
+        inputChar = '\n'
+        if step < len(inputs[count]):
+            inputChar = inputs[count][step]
+            step += 1
+        else:
+            count += 1
+            step = 0
+        inputChar = ord(inputChar)
+        return inputChar
+
+    def fnSetOutput(val):
+        nonlocal row
+        nonlocal col
+        nonlocal start
+        if val != 10 and val < 1000:
+            view[(row, col)] = chr(val)
+            if chr(val) != '#' and chr(val) != '.':
+                start = (row,col)
+            col += 1
+        elif val == 10:
+            row += 1
+            col = 0
+        else:
+            print("Dirt", val)
+
+    intMachine(tape, fnGetInput, fnSetOutput)
+    ##pMap(view, '.', None)
+    ##align = 0
+    ##for cell in view:
+    ##    r, c = cell
+    ##    if view[cell] == '#' and (r-1,c) in view and view[(r-1,c)] == '#' and (r+1,c) in view and view[(r+1,c)] == '#' and (r,c-1) in view and view[(r,c-1)] == '#' and (r,c+1) in view and view[(r,c+1)] == '#':
+    ##        align += r*c
+    ##print("Align:", align)
+
+    ## ===> Part2: Warning
+    def move(r, c, f):
+        forward = tuple([r+(f==2)-(f==0), c+(f==1)-(f==3)])
+        left    = tuple([r-(f==1)+(f==3), c-(f==0)+(f==2)])
+        right   = tuple([r-(f==3)+(f==1), c-(f==2)+(f==0)])
+        if forward in view and view[forward] == '#':
+            return forward[0], forward[1], f, 'F'
+        elif left in view and view[left] == '#':
+            return r, c, (f-1) % 4, 'L'
+        elif right in view and view[right] == '#':
+            return r, c, (f+1) % 4, 'R'
+        else:
+            return r, c, f, ''
+
+    f    = 1 #{0=N,1=E,2=S,3=W}
+    r, c = start
+    command = 'R'
+    commands = "R"
+    while command:
+        r, c, f, command = move(r, c, f)
+        commands += command
+    ##pMap(view, '.', None)
+    commands = compress(commands)
+    ##print(commands)
+
+def day19(fileName):
+    tape    = formatTape(fileName)
+    view    = {}
+
+    def checkCell(i,j):
+        xCoord  = i
+        yCoord  = j
+        isX     = False
+        temp    = tape[:]
+
+        def fnGetInput():
+            nonlocal isX
+            nonlocal xCoord
+            nonlocal yCoord
+            isX = not isX
+            return xCoord if isX else yCoord
+
+        def fnSetOutput(val):
+            nonlocal xCoord
+            nonlocal yCoord
+            view[(xCoord,yCoord)] = val
+
+        if (i,j) not in view:
+            intMachine(temp, fnGetInput, fnSetOutput)
+            ##print("({},{}): {}".format(i,j, view[(i,j)]))
+        return view[(i,j)]
+
+    ##for i in range(50):
+    ##    for j in range(50):
+    ##        checkCell(i,j)
+    ##pMap(view, ' ', {0:'.', 1:'#'})
+    ##print(sum(view.values()))
+
+    ## ==> Part2: Prep Beam
+    N       = 50
+    col     = 8*(N-1)+4
+    row     = 9*(N-1)+5
+    rOffset = 0
+    rDim    = 100
+
+    while True:
+        inRow = row+rOffset
+        if  checkCell(col,inRow) and\
+            checkCell(col, inRow+rDim-1):
+            if col > 1729:
+                print(col, row, rOffset)
+            if  checkCell(col+rDim-1, inRow) and\
+                checkCell(col+rDim-1, inRow+rDim-1):
+                print(col*10000+inRow)
+                return
+            else:
+                rOffset += 1
+        else:
+            row += 1 + (col % 8 == 7)
+            col += 1
+            if col % 8 == 4:
+                N   += 1
+                ##rOffset = max(N-2, 0)//2
+
 def main():
-    fileName = "day16-input.txt"
+    fileName = "day19-input.txt"
     ##fileName = "test.txt"
-    day16(fileName)
+    day19(fileName)
 
 if __name__ == "__main__":
     main()
