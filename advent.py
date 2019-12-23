@@ -928,8 +928,6 @@ def day19(fileName):
         inRow = row+rOffset
         if  checkCell(col,inRow) and\
             checkCell(col, inRow+rDim-1):
-            if col > 1729:
-                print(col, row, rOffset)
             if  checkCell(col+rDim-1, inRow) and\
                 checkCell(col+rDim-1, inRow+rDim-1):
                 print(col*10000+inRow)
@@ -939,14 +937,48 @@ def day19(fileName):
         else:
             row += 1 + (col % 8 == 7)
             col += 1
+            rOffset = N//2 - 2
             if col % 8 == 4:
                 N   += 1
-                ##rOffset = max(N-2, 0)//2
+
+def day20(fileName):
+
+    return
+
+def day22(fileName):
+    shuffle = []
+    nCards  = 10007
+    nCards  = 10
+    nIter   = 41
+    cards   = [i for i in range(nCards)]
+
+    with fileinput.input(fileName) as f:
+        for line in f:
+            line = line.strip()
+            shuffle.append(line.split())
+
+    for i in range(1, nIter+1):
+        for t in shuffle:
+            if t[0] == 'deal':
+                if t[1] == 'into':
+                    cards.reverse()
+                else:
+                    inc = int(t[3])
+                    pos = 0
+                    new = {}
+                    for c in cards:
+                        new[c] = pos
+                        pos = (pos + inc) % nCards
+                    cards.sort(key=lambda c: new[c])
+            elif t[0] == 'cut':
+                amount = int(t[1])
+                cards = cards[amount:] + cards[:amount]
+        print("Iter {}:".format(i), cards)
 
 def main():
-    fileName = "day19-input.txt"
+    fileName = "day22-input.txt"
     ##fileName = "test.txt"
-    day19(fileName)
+    day22(fileName)
 
 if __name__ == "__main__":
     main()
