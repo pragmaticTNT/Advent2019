@@ -1067,7 +1067,7 @@ def day24(fileName):
     with fileinput.input(fileName) as f:
         for line in f:
             line = line.strip()
-            grid.append(line.split())
+            grid.append([c for c in line])
 
     def fnGridToStr():
         nonlocal grid
@@ -1080,9 +1080,32 @@ def day24(fileName):
         for i in range(5):
             for j in range(5):
                 count = 0
-                if i >= 1:
-                    count += gri
+                if i >= 1 and grid[i-1][j] == '#':
+                    count += 1
+                if i < 4 and grid[i+1][j] == '#':
+                    count += 1
+                if j >= 1 and grid[i][j-1] == '#':
+                    count += 1
+                if j < 4 and grid[i][j+1] == '#':
+                    count += 1
+                if grid[i][j] == '#':
+                    new[i][j] = '#' if count == 1 else '.'
+                else:
+                    new[i][j] = '#' if 1 <= count <= 2 else '.'
         return new
+
+    def fnCalcDiversity():
+        nonlocal state
+        diversity = 0
+        for i,c in enumerate(state):
+            diversity += 2**i if c == "#" else 0
+        return diversity
+
+    def fnPrint():
+        nonlocal grid
+        for r in grid:
+            print("".join(r))
+        print()
 
     history = []
     state   = fnGridToStr()
@@ -1090,13 +1113,13 @@ def day24(fileName):
         history.append(state)
         grid    = fnEvolve()
         state   = fnGridToStr()
-    print(grid)
-
+    fnPrint()
+    print(fnCalcDiversity())
 
 def main():
-    fileName = "day22-input.txt"
+    fileName = "day24-input.txt"
     ##fileName = "test.txt"
-    day22(fileName)
+    day24(fileName)
 
 if __name__ == "__main__":
     main()
