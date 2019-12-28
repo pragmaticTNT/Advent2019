@@ -1,9 +1,9 @@
 import fileinput
 import itertools as it
 import math
-import heapq
 import time as tm
 import os
+import random as rn
 clear = lambda: os.system('clear')
 
 class Node():
@@ -942,28 +942,33 @@ def day19(fileName):
                 N   += 1
 
 def day20(fileName):
-
     return
 
 def day22(fileName):
     shuffle = []
     nCards  = 10007
-    nCards  = 10
-    nIter   = 41
+    ##nCards  = 10
     cards   = [i for i in range(nCards)]
 
     with fileinput.input(fileName) as f:
         for line in f:
             line = line.strip()
-            shuffle.append(line.split())
+            line = line.split()
+            if line[0] == 'cut':
+                line[1] = int(line[1])
+            if line[1] == 'with':
+                line[3] = int(line[3])
+            shuffle.append(line)
 
-    for i in range(1, nIter+1):
+    def fnShuffle():
+        nonlocal shuffle
+        nonlocal cards
         for t in shuffle:
             if t[0] == 'deal':
                 if t[1] == 'into':
                     cards.reverse()
                 else:
-                    inc = int(t[3])
+                    inc = t[3]
                     pos = 0
                     new = {}
                     for c in cards:
@@ -971,9 +976,122 @@ def day22(fileName):
                         pos = (pos + inc) % nCards
                     cards.sort(key=lambda c: new[c])
             elif t[0] == 'cut':
-                amount = int(t[1])
+                amount  = t[1]
                 cards = cards[amount:] + cards[:amount]
-        print("Iter {}:".format(i), cards)
+            ##print("{} {}:".format(t[0], t[1]), cards)
+
+    def fnFind(start):
+        nonlocal shuffle
+        nonlocal nCards
+
+        inPos = start
+        for t in shuffle:
+            ##print(inPos)
+            if t[0] == 'deal':
+                if t[1] == 'into':
+                    inPos = nCards - inPos - 1
+                else:
+                    inc     = t[3]
+                    rem     = nCards % inc
+                    nPart   = nCards // inc
+                    temp    = inc+rem
+                    new     = {}
+                    pos     = 0
+                    val     = 0
+                    for i in range(temp):
+                        ##print(pos,val)
+                        new[pos] = val
+                        newPos = (pos + inc) % temp
+                        if newPos < pos:
+                            val += 1 if pos >= inc else nPart
+                        elif newPos >= inc:
+                            val += nPart
+                        pos = (pos + inc) % temp
+                    posPart = inPos // inc
+                    posInc  = inPos % inc
+                    inPos = new[posInc] + posPart
+            elif t[0] == 'cut':
+                if t[1] > 0:
+                    gap = nCards-t[1]
+                    inPos += t[1] if inPos < gap else -gap
+                else:
+                    gap = nCards + t[1]
+                    inPos += gap if inPos < abs(t[1]) else t[1]
+        ##print("Card at Pos {}: {}".format(start, inPos))
+        return inPos
+
+    nCards      = 119315717514047
+    nShuffle    = 101741582076661
+    period      = 10006
+    indexFind   = 2020
+
+    ## ===> Testing <===
+    period      = 0
+    nTrials     = 10
+    rRange      = 1000
+
+    ## ===> Finding the Period of Shuffles <===
+    shuffle.reverse()
+    for i in range(nTrials):
+        p       = rn.randrange(rRange)
+        print("Trying:", p)
+        count   = 1
+        index   = p
+        index   = fnFind(index)
+        while index != p:
+            ##print("index:", index)
+            index = fnFind(index)
+            count += 1
+        period  = max(period, count)
+    shuffle.reverse()
+    print("Period:", period)
+    for i in range(period):
+        fnShuffle()
+    if cards == sorted(cards):
+        print("Period Found!")
+
+    ## ===> Shuffling Cards <===
+    ##nShuffle    = nShuffle % period
+    ##for i in range(nShuffle):
+    ##    fnShuffle()
+    ##print("Finished Shuffling...")
+
+    #### ===> Work Backwards to Find Card in Location 2020 <===
+    ##shuffle.reverse()
+    ##for i in range(nShuffle):
+    ##    indexFind = fnFind(indexFind)
+    ##print("Card at position 2020:", indexFind)
+
+def day24(fileName):
+    grid = []
+    with fileinput.input(fileName) as f:
+        for line in f:
+            line = line.strip()
+            grid.append(line.split())
+
+    def fnGridToStr():
+        nonlocal grid
+        rows = [''.join(r) for r in grid]
+        return ''.join(rows)
+
+    def fnEvolve():
+        nonlocal grid
+        new = [row[:] for row in grid]
+        for i in range(5):
+            for j in range(5):
+                count = 0
+                if i >= 1:
+                    count += gri
+        return new
+
+    history = []
+    state   = fnGridToStr()
+    while state not in history:
+        history.append(state)
+        grid    = fnEvolve()
+        state   = fnGridToStr()
+    print(grid)
+
 
 def main():
     fileName = "day22-input.txt"
