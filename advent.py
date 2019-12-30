@@ -1070,64 +1070,68 @@ def day24(fileName):
     with fileinput.input(fileName) as f:
         for line in f:
             line = line.strip()
-            grid.append([c for c in line])
+            grid.append([int(c == '#') for c in line])
+    grid[2][2] = 2
 
-    def fnGridToStr():
-        nonlocal grid
-        rows = [''.join(r) for r in grid]
+    def grid_to_str(grid):
+        rows = [''.join([str(c) for c in r]) for r in grid]
         return ''.join(rows)
 
-    def fnCalcDiversity():
-        nonlocal state
+    def calc_diversity(state):
         diversity = 0
         for i,c in enumerate(state):
-            diversity += 2**i if c == "#" else 0
+            diversity += 2**i * c
         return diversity
 
     ## Center has 4 Entries [N, S, E, W]
+    ## 1 - Bug, 0 - No Bug, 2 - Recursive Cell
     def evolve(
             grid: List[List[int]],
             exterior: List[int],
             interior: List[int]
     ) -> List[List[int]]:
         new = [row[:] for row in grid]
+        ##print_grid(grid)
+        ##print("Exterior:", exterior)
+        ##print("Interior:", interior)
         for i in range(5):
             for j in range(5):
                 count = 0
                 if i >= 1:
-                    count += grid[i-1][j] == '#'
+                    count += grid[i-1][j] == 1
                     count += interior[1] if (i-1,j) == (3,2) else 0
                 if i == 0:
                     count += exterior[0]
                 if i < 4:
-                    count += grid[i+1][j] == '#':
+                    count += grid[i+1][j] == 1
                     count += interior[0] if (i+1,j) == (1,2) else 0
                 if i == 4:
                     count += exterior[1]
                 if j < 4:
-                    count += grid[i][j+1] == '#':
+                    count += grid[i][j+1] == 1
                     count += interior[2] if (i,j+1) == (2,3) else 0
                 if j == 4:
                     count += exterior[2]
                 if j >= 1:
-                    count += grid[i][j-1] == '#':
+                    count += grid[i][j-1] == 1
                     count += interior[3] if (i,j-1) == (2,1) else 0
                 if j == 0:
                     count += exterior[3]
-                if grid[i][j] == '#':
-                    new[i][j] = '#' if count == 1 else '.'
-                elif grid[i][j] == '.':
-                    new[i][j] = '#' if 1 <= count <= 2 else '.'
+                if grid[i][j] == 1:
+                    new[i][j] = count == 1
+                elif grid[i][j] == 0:
+                    new[i][j] = (1 <= count <= 2 )
+                ##print(i,j,count)
         return new
 
     def print_grid(grid) -> None:
         for r in grid:
-            print("".join(r))
+            print("".join([str(int(c)) for c in r]))
         print()
 
     ## ===> Part 1 <===
     history = []
-    state   = fnGridToStr()
+    state   = grid_to_str(grid)
     ##while state not in history:
     ##    history.append(state)
     ##    grid    = fnEvolve()
@@ -1138,47 +1142,47 @@ def day24(fileName):
     ## ===> Part 2 <===
     ## Center has 4 Entries [N, S, E, W]
     def gen_center(layer: List[List[int]]) -> List[int]:
-        return [layer[1][2] == '#', layer[3][2] == '#',\
-                layer[2][3] == '#', layer[2][1] == '#']
+        return [layer[1][2] == 1, layer[3][2] == 1,\
+                layer[2][3] == 1, layer[2][1] == 1]
 
     ## Boundary also has 4 Entries [BN, BS, BE, BW] denoting each boundary
     def gen_boundary(layer: List[List[int]]) -> List[int]:
-        boundary = []
+        boundary = [0,0,0,0]
         boundary[0] = sum(layer[0])
         boundary[1] = sum(layer[4])
-        boundary[2] = sum{[layers[i][4] for i in range(5)])
-        boundary[3] = sum{[layers[i][0] for i in range(5)])
+        boundary[2] = sum([layer[i][4] for i in range(5)])
+        boundary[3] = sum([layer[i][0] for i in range(5)])
         return boundary
 
     def gen_in_layer(layer: List[List[int]], center: List[int]) -> List[List[int]]:
-        new_layer = [['.' for i in range(5)] for j in range(5)]
-        new_layer[2][2] = '?'
+        new_layer = [[0 for i in range(5)] for j in range(5)]
+        new_layer[2][2] = 2
         if center[0]:
-            new_layer[0] = ['#' for i in range(5)]
+            new_layer[0] = [1 for i in range(5)]
         if center[1]:
-            new_layer[4] = ['#' for i in range(5)]
+            new_layer[4] = [1 for i in range(5)]
         if center[2]:
             for i in range(5):
-                new_layer[i][4] = '#'
+                new_layer[i][4] = 1
         if center[3]:
             for i in range(5):
-                new_layer[i][0] = '#'
+                new_layer[i][0] = 1
         return new_layer
 
     def gen_out_layer(layer: List[List[int]], boundary: List[int]) -> List[List[int]]:
-        new_layer = [['.' for i in range(5)] for j in range(5)]
-        new_layer[2][2] = '?'
-        if 1 <= center[0] <= 2:
-            new_layer[1][2] = '#'
-        if 1 <= center[1] <= 2:
-            new_layer[3][2] = '#'
-        if 1 <= center[2] <= 2:
-            new_layer[2][3] = '#'
-        if 1 <= center[3] <= 2:
-            new_layer[2][1] = '#'
+        new_layer = [[0 for i in range(5)] for j in range(5)]
+        new_layer[2][2] = 2
+        if 1 <= boundary[0] <= 2:
+            new_layer[1][2] = 1
+        if 1 <= boundary[1] <= 2:
+            new_layer[3][2] = 1
+        if 1 <= boundary[2] <= 2:
+            new_layer[2][3] = 1
+        if 1 <= boundary[3] <= 2:
+            new_layer[2][1] = 1
         return new_layer
 
-    time = 1
+    time = 11
     max_depth, min_depth = (0, 0)
     layers  = {0:grid}
     bd_bugs = {}
@@ -1189,6 +1193,11 @@ def day24(fileName):
             bd_bugs[layer] = gen_boundary(layers[layer])
             ct_bugs[layer] = gen_center(layers[layer])
 
+        for i in range(min_depth, max_depth+1):
+            print("Layer:", i)
+            print_grid(layers[i])
+        print("---")
+
         ## ---> Inc min depth if necessary
         if sum(ct_bugs[min_depth]):
             layer = gen_in_layer(layers[min_depth], ct_bugs[min_depth])
@@ -1197,8 +1206,8 @@ def day24(fileName):
             bd_bugs[min_depth] = [0,0,0,0]
             ct_bugs[min_depth] = [0,0,0,0]
         else:
-            bd = bd_bugs[min_depth+1] if (min_depth+1 <= max_depth) else [0,0,0,0]
-            layers[min_depth] = evolve(layers[min_depth], [0,0,0,0], bd)
+            ct = ct_bugs[min_depth+1] if (min_depth+1 <= max_depth) else [0,0,0,0]
+            layers[min_depth] = evolve(layers[min_depth], ct, [0,0,0,0])
 
         ## ---> Inc max depth if necessary
         if sum(bd_bugs[max_depth]):
@@ -1209,15 +1218,11 @@ def day24(fileName):
             ct_bugs[max_depth] = [0,0,0,0]
         else:
             if max_depth != min_depth:
-                ct = ct_bugs[max_depth-1] if (max_depth-1 >= min_depth) else [0,0,0,0]
-                layers[max_depth] = evolve(layers[max_depth], ct, [0,0,0,0])
+                bd = bd_bugs[max_depth-1] if (max_depth-1 >= min_depth) else [0,0,0,0]
+                layers[max_depth] = evolve(layers[max_depth], [0,0,0,0], bd)
 
-        for i in range(min_dept+1, max_depth):
+        for i in range(min_depth+1, max_depth):
             layers[i] = evolve(layers[i], ct_bugs[i+1], bd_bugs[i-1])
-
-    for layer in layers:
-        print("Layer:", layer)
-        print_grid(layers[layer])
 
 def main():
     fileName = "day24-input.txt"
