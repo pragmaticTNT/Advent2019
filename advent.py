@@ -1099,22 +1099,22 @@ def day24(fileName):
                 count = 0
                 if i >= 1:
                     count += grid[i-1][j] == 1
-                    count += interior[1] if (i-1,j) == (3,2) else 0
+                    count += interior[1] if (i-1,j) == (2,2) else 0
                 if i == 0:
                     count += exterior[0]
                 if i < 4:
                     count += grid[i+1][j] == 1
-                    count += interior[0] if (i+1,j) == (1,2) else 0
+                    count += interior[0] if (i+1,j) == (2,2) else 0
                 if i == 4:
                     count += exterior[1]
-                if j < 4:
-                    count += grid[i][j+1] == 1
-                    count += interior[2] if (i,j+1) == (2,3) else 0
-                if j == 4:
-                    count += exterior[2]
                 if j >= 1:
                     count += grid[i][j-1] == 1
-                    count += interior[3] if (i,j-1) == (2,1) else 0
+                    count += interior[2] if (i,j-1) == (2,2) else 0
+                if j == 4:
+                    count += exterior[2]
+                if j < 4:
+                    count += grid[i][j+1] == 1
+                    count += interior[3] if (i,j+1) == (2,2) else 0
                 if j == 0:
                     count += exterior[3]
                 if grid[i][j] == 1:
@@ -1122,6 +1122,7 @@ def day24(fileName):
                 elif grid[i][j] == 0:
                     new[i][j] = (1 <= count <= 2 )
                 ##print(i,j,count)
+        ##print_grid(new)
         return new
 
     def print_grid(grid) -> None:
@@ -1182,7 +1183,7 @@ def day24(fileName):
             new_layer[2][1] = 1
         return new_layer
 
-    time = 11
+    time = 200
     max_depth, min_depth = (0, 0)
     layers  = {0:grid}
     bd_bugs = {}
@@ -1193,10 +1194,12 @@ def day24(fileName):
             bd_bugs[layer] = gen_boundary(layers[layer])
             ct_bugs[layer] = gen_center(layers[layer])
 
-        for i in range(min_depth, max_depth+1):
-            print("Layer:", i)
-            print_grid(layers[i])
-        print("---")
+        ##for i in range(min_depth, max_depth+1):
+        ##    print("Layer:", -i)
+        ##    print_grid(layers[i])
+        ##    ##print("bd:", bd_bugs[i])
+        ##    ##print("ct:", ct_bugs[i])
+        ##print("---")
 
         ## ---> Inc min depth if necessary
         if sum(ct_bugs[min_depth]):
@@ -1224,9 +1227,15 @@ def day24(fileName):
         for i in range(min_depth+1, max_depth):
             layers[i] = evolve(layers[i], ct_bugs[i+1], bd_bugs[i-1])
 
+    nBugs = 0
+    for i in range(min_depth, max_depth+1):
+        temp = [row.count(1) for row in layers[i]]
+        nBugs += sum(temp)
+    print("Total Bugs:", nBugs)
+
 def main():
     fileName = "day24-input.txt"
-    fileName = "test.txt"
+    ##fileName = "test.txt"
     day24(fileName)
 
 if __name__ == "__main__":
