@@ -766,12 +766,35 @@ def day15(fileName):
     print("Fill:", count-1)
     return
 
-def ip(v1, v2):
+def innerProduct(v1, v2):
     return sum([a*b for a,b in zip(v1,v2)])
+
+def getNewSignal(signal):
+    pattern = [0,1,0,-1]
+    n = len(signal)
+    newSignal = []
+    for i in range(1, n+1):
+        mask = []
+        mark = 0
+        while len(mask) <= n:
+            mask += [pattern[mark]]*i
+            mark = (mark+1) % 4
+        mask    = mask[1:(n+1)]
+        bit     = innerProduct(signal, mask)
+        bit     = abs(bit) % 10
+        newSignal.append(bit)
+    return newSignal
+
+def getNextM(l):
+    val    = sum(l) % 10
+    output = [val]
+    for i in range(len(l)-1):
+        val = (val-l[i]) % 10
+        output.append(val)
+    return output
 
 def day16(fileName):
     signal  = []
-    pattern = [0,1,0,-1]
     offset  = 0
     with fileinput.input(fileName) as f:
         line = f.readline()
@@ -779,24 +802,24 @@ def day16(fileName):
         offset = int(line[0:7])
         signal = [int(c) for c in line]
 
-    n = len(signal)
-    print("Length:", n)
     print("Offset:", offset)
+    m     = len(signal) * 10000 - offset
     phase = 100
-    for i in range(phase):
-        newSignal = []
-        for i in range(1, n+1):
-            mask = []
-            mark = 0
-            while len(mask) <= n:
-                mask += [pattern[mark]]*i
-                mark = (mark+1) % 4
-            mask    = mask[1:(n+1)]
-            bit     = ip(signal, mask)
-            bit     = abs(bit) % 10
-            newSignal.append(bit)
-        signal = newSignal[:]
-    print(newSignal[0:8])
+
+    sigSum = sum(signal) % 10
+    n      = len(signal)
+    mult   = m // n
+    rem    = m % n
+    rem    = n - m # 01|23456 remainder 5 from end, index 2
+    lastM  = signal[rem:] + signal*m
+    for i in range(phase-1):
+        lastM = getNextM(lastM)
+
+    ## ===> Part 1 <===
+    ##print(signal[0:8])
+
+    ## ===> Part 2 <===
+    print(lastM[0:8])
 
 def compress(string):
     count = 1
@@ -811,38 +834,40 @@ def compress(string):
     compStr += str(count) if count>1 else string[-1]
     return compStr
 
-def day17(fileName):
+def getInstructions(fileName):
+    instr = ""
+    with fileinput.input(fileName) as f:
+        instr = "".join(f)
+    return instr
+
+ASCII_MAX = 127
+class AsciiComputer():
+    def __init__(self, instr):
+        self.instr = instr
+        self.index = 0
+    def getInput(self):
+        if self.index >= len(self.instr):
+            self.instr = input("")
+            self.instr += '\n'
+            self.index = 0
+        char   = ord(self.instr[self.index])
+        self.index += 1
+        return char
+
+def day17(fileName, instr=None):
     tape = formatTape(fileName)
+    inputs = getInstructions(instr)
+
     view = {}
-    inputs = {}
-    inputs[0] = "A,A,B,C,B,C,B,C,A,C"
-    inputs[1] = "R,6,L,8,R,8"
-    inputs[2] = "R,4,R,6,R,6,R,4,R,4"
-    inputs[3] = "L,8,R,6,L,10,L,10"
-    inputs[4] = "n"
     row, col = (0,0)
     start   = (row, col)
-    step    = 0
-    count   = 0
-
-    def fnGetInput():
-        nonlocal step
-        nonlocal count
-        inputChar = '\n'
-        if step < len(inputs[count]):
-            inputChar = inputs[count][step]
-            step += 1
-        else:
-            count += 1
-            step = 0
-        inputChar = ord(inputChar)
-        return inputChar
+    ac      = AsciiComputer(inputs)
 
     def fnSetOutput(val):
         nonlocal row
         nonlocal col
         nonlocal start
-        if val != 10 and val < 1000:
+        if val != 10 and val <= ASCII_MAX:
             view[(row, col)] = chr(val)
             if chr(val) != '#' and chr(val) != '.':
                 start = (row,col)
@@ -853,7 +878,7 @@ def day17(fileName):
         else:
             print("Dirt", val)
 
-    intMachine(tape, fnGetInput, fnSetOutput)
+    intMachine(tape, ac.getInput, fnSetOutput)
     ##pMap(view, '.', None)
     ##align = 0
     ##for cell in view:
@@ -947,123 +972,147 @@ def day19(fileName):
 def day20(fileName):
     return
 
-def day22(fileName):
-    shuffle = []
-    nCards  = 10007
-    ##nCards  = 10
-    cards   = [i for i in range(nCards)]
+def day21(fileName, instrName):
+    tape    = formatTape(fileName)
+    instr   = getInstructions(instrName)
+    ac      = AsciiComputer(instr)
 
-    with fileinput.input(fileName) as f:
+    def fnSetOutput(val):
+        if 0 <= val < ASCII_MAX:
+            print(str(chr(val)), end="")
+        else:
+            print(f"Damage: {val}")
+
+    intMachine(tape, ac.getInput, fnSetOutput)
+
+def extended_euclid(a: int, b:int) -> (int, int, int):
+    """
+    Computes gcd(a,b) and the Bezout coefficients s and t
+    where a*s + b*t = gcd(a,b).
+    """
+    r0, s0, t0 = a, 1, 0
+    r1, s1, t1 = b, 0, 1
+    while r1:
+        #print(f"({r0}, {s0}, {t0}) -> ({r1}, {s1}, {t1})")
+        q = r0//r1
+        rNew = r0 % r1
+        sNew = s0 - s1*q
+        tNew = t0 - t1*q
+        r0, s0, t0 = r1, s1, t1
+        r1, s1, t1 = rNew, sNew, tNew
+    return (r0, s0, t0)
+
+class Deck:
+    def __init__(self, size: int):
+        self.size  = size
+        # Card x at index ax + b
+        self._a     = 1
+        self._b     = 0
+
+    def card_at_index(self, index: int) -> int:
+        return (self._a*index + self._b) % self.size
+
+    def shuffle(self, techniques: List[str]) -> None:
+        if techniques != None:
+            for t in techniques:
+                # [cut 7] on deck [0 ... 9]
+                # 0 1 2 3 4 5 6 7 8 9 ->
+                # 7 8 9 0 1 2 3 4 5 6
+                # [cut k](ax + b) -> ax + b - k mod size
+                if t[0] == "cut":
+                    b   = int(t[1])
+                    self._b = (self._b - b) % self.size
+                elif t[0] == "deal":
+                    # [deal into new stack] on deck [0 ... 9]
+                    # 0 1 2 3 4 5 6 7 8 9 ->
+                    # 9 8 7 6 5 4 3 2 1 0
+                    # [dins](ax + b) -> -ax - b - 1 mod size
+                    if t[1] == "into":
+                        self._a = -self._a % self.size
+                        self._b = (-self._b-1) % self.size
+                    # [deal with increment 3] on deck [0 ... 9]
+                    # 0 1 2 3 4 5 6 7 8 9 ->
+                    # 0 7 4 1 8 5 2 9 6 3
+                    # [dwi k](ax + b) = kax + kb mod size
+                    elif t[1] == "with":
+                        mult = int(t[3])
+                        self._a = (self._a * mult) % self.size
+                        self._b = (self._b * mult) % self.size
+                    else:
+                        print("Deal not into or with.")
+                        assert False
+                else:
+                    print("Technique not cut or deal.")
+                    assert False
+        #print(f"a: {self._a}, b: {self._b}")
+
+    def shuffle_nTimes(self, nTimes: int):
+        a = 1
+        b = 0
+        a_cur = self._a
+        b_cur = self._b
+        while nTimes:
+            # Modify a and b so that they shuffle nTimes times
+            if nTimes % 2:
+                a = a_cur*a % self.size
+                b = a_cur*b + b_cur % self.size
+            nTimes //= 2
+            a_new = a_cur*a_cur % self.size
+            b_new = a_cur*b_cur + b_cur
+            a_cur, b_cur = a_new, b_new
+        self._a, self._b = a, b
+
+    def inv_shuffle(self) -> None:
+    # Finds a' and b' such that a'(ax + b) + b' = x + 0 mod size
+    # Luckily, size is prime so we can use fermat's little
+    # theorem: a^{m-1} \equiv 1 (mod m). Rearranging, we have:
+    # a^{m-2} \equiv a^{-1} (mod m).
+        exp = self.size - 2
+        a = pow(self._a, exp, self.size)
+        if a*self._a % self.size != 1:
+        # If Fermat's little theorem did not work use extended
+        # Euclidean division
+            gcd, a, b = extended_euclid(self._a, self.size)
+            a %= self.size
+            #print(f"{gcd}, {a}, {b}")
+            if gcd > 1:
+                print("({self._a}, {self.size}) NOT coprime.")
+                assert False
+
+        assert (a*self._a % self.size) == 1
+        b = -self._b*a % self.size
+        self._a, self._b = a, b
+        #print(f"a: {self._a}, b: {self._b}")
+
+def day22():
+    inputStrList = []
+    with fileinput.input() as f:
         for line in f:
-            line = line.strip()
-            line = line.split()
-            if line[0] == 'cut':
-                line[1] = int(line[1])
-            if line[1] == 'with':
-                line[3] = int(line[3])
-            shuffle.append(line)
+            line.rstrip('\n')
+            inputStrList.append(line)
+    techniques = [s.split() for s in inputStrList]
 
-    def fnShuffle():
-        nonlocal shuffle
-        nonlocal cards
-        for t in shuffle:
-            if t[0] == 'deal':
-                if t[1] == 'into':
-                    cards.reverse()
-                else:
-                    inc = t[3]
-                    pos = 0
-                    new = {}
-                    for c in cards:
-                        new[c] = pos
-                        pos = (pos + inc) % nCards
-                    cards.sort(key=lambda c: new[c])
-            elif t[0] == 'cut':
-                amount  = t[1]
-                cards = cards[amount:] + cards[:amount]
-            ##print("{} {}:".format(t[0], t[1]), cards)
+    nCards = 119315717514047
+    nShuffles = 101741582076661
+    index = 2020
+    #nShuffles = 5
+    #index = 0
+    #nCards = 10007
+    #nCards = 10
 
-    def fnFind(start):
-        nonlocal shuffle
-        nonlocal nCards
+    print("Shuffling Deck...")
+    deck = Deck(nCards)
+    deck.shuffle(techniques)
+    deck.shuffle_nTimes(nShuffles)
 
-        inPos = start
-        for t in shuffle:
-            ##print(inPos)
-            if t[0] == 'deal':
-                if t[1] == 'into':
-                    inPos = nCards - inPos - 1
-                else:
-                    inc     = t[3]
-                    rem     = nCards % inc
-                    nPart   = nCards // inc
-                    temp    = inc+rem
-                    new     = {}
-                    pos     = 0
-                    val     = 0
-                    for i in range(temp):
-                        ##print(pos,val)
-                        new[pos] = val
-                        newPos = (pos + inc) % temp
-                        if newPos < pos:
-                            val += 1 if pos >= inc else nPart
-                        elif newPos >= inc:
-                            val += nPart
-                        pos = (pos + inc) % temp
-                    posPart = inPos // inc
-                    posInc  = inPos % inc
-                    inPos = new[posInc] + posPart
-            elif t[0] == 'cut':
-                if t[1] > 0:
-                    gap = nCards-t[1]
-                    inPos += t[1] if inPos < gap else -gap
-                else:
-                    gap = nCards + t[1]
-                    inPos += gap if inPos < abs(t[1]) else t[1]
-        ##print("Card at Pos {}: {}".format(start, inPos))
-        return inPos
+    print("Reversing shuffle...")
+    deck.inv_shuffle()
+    #for index in range(nCards):
+    #    print(f"Pos[{index}] @ {deck.card_at_index(index)}")
+    print(f"Pos[{index}] @ {deck.card_at_index(index)}")
 
-    nCards      = 119315717514047
-    nShuffle    = 101741582076661
-    period      = 10006
-    indexFind   = 2020
-
-    ## ===> Testing <===
-    period      = 0
-    nTrials     = 10
-    rRange      = 1000
-
-    ## ===> Finding the Period of Shuffles <===
-    shuffle.reverse()
-    for i in range(nTrials):
-        p       = rn.randrange(rRange)
-        print("Trying:", p)
-        count   = 1
-        index   = p
-        index   = fnFind(index)
-        while index != p:
-            ##print("index:", index)
-            index = fnFind(index)
-            count += 1
-        period  = max(period, count)
-    shuffle.reverse()
-    print("Period:", period)
-    for i in range(period):
-        fnShuffle()
-    if cards == sorted(cards):
-        print("Period Found!")
-
-    ## ===> Shuffling Cards <===
-    ##nShuffle    = nShuffle % period
-    ##for i in range(nShuffle):
-    ##    fnShuffle()
-    ##print("Finished Shuffling...")
-
-    #### ===> Work Backwards to Find Card in Location 2020 <===
-    ##shuffle.reverse()
-    ##for i in range(nShuffle):
-    ##    indexFind = fnFind(indexFind)
-    ##print("Card at position 2020:", indexFind)
+def day23(fileName):
+    tape = formatTape(fileName)
 
 def day24(fileName):
     grid = []
@@ -1233,10 +1282,21 @@ def day24(fileName):
         nBugs += sum(temp)
     print("Total Bugs:", nBugs)
 
+def day25(fileName, instrName):
+    tape = formatTape(fileName)
+    inst = getInstructions(instrName)
+    ac   = AsciiComputer(inst)
+
+    def fnSetOutput(val):
+        print(str(chr(val)), end="")
+
+    intMachine(tape, ac.getInput, fnSetOutput)
+
 def main():
-    fileName = "day24-input.txt"
-    ##fileName = "test.txt"
-    day24(fileName)
+    #fileName = "day16-input.txt"
+    #instrFile = "day25-instruct.txt"
+    #fileName = "test.txt"
+    day22()
 
 if __name__ == "__main__":
     main()

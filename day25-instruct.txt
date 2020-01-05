@@ -1,0 +1,22 @@
+east
+take whirled peas
+north
+take coin
+east
+north
+take prime number
+south
+east
+east
+take dark matter
+west
+west
+west
+west
+north
+take fixed point
+north
+take weather machine
+east
+[]
+
