@@ -121,11 +121,3 @@ class IntMachine:
             c += 2
 
 class Instr:
-
-def read_program(fileName):
-    tape = []
-    with fileinput.input(fileName) as f:
-        code = f.readline()
-        tape = [int(c) for c in code.split(",")]
-    tape += [0 for i in range(len(tape)*10)]
-    return tape

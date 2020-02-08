@@ -20,7 +20,6 @@ class _ProgramHalt(Exception):
     """Raised when a halt instruction executes."""
     pass
 
-
 class IntcodeComputer:
     """An interpreter for Intcode programs."""
 

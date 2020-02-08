@@ -9,9 +9,6 @@ clear = lambda: os.system('clear')
 from enum import Enum
 from typing import List, Dict, Tuple, Set
 
-import elves
-from intcode_computer.py import IntcodeComputer
-
 class Node():
     def __init__(self, value):
         self.value      = value
@@ -69,29 +66,107 @@ def total_fuel_given(mass: int) -> int:
         extra = fuel_given(extra)
     return fuel
 
-def day1() -> None:
-    modules = []
-    with fileinput.input() as f:
+def getAddr(tape, mode, rel, c):
+    val = 0
+    if mode == 0:
+        val = tape[c]
+    elif mode == 1:
+        val = c
+    elif mode == 2:
+        val = rel + tape[c]
+    return val
+
+def getVal(tape, mode, rel, c):
+    return tape[getAddr(tape, mode, rel, c)]
+
+def intMachine(tape, fnGetInput, fnSetOutput):
+    c       = 0
+    rel     = 0
+    while tape[c] != 99:
+        instr = tape[c]
+        mode    = instr // 100
+        instr   = instr % 100
+        if instr == 1:
+            t1 = getVal(tape, mode%10, rel, c+1)
+            mode //= 10
+            t2 = getVal(tape, mode%10, rel, c+2)
+            mode //= 10
+            addr = getAddr(tape, mode, rel, c+3)
+            tape[addr] = t1 + t2
+            c += 4
+        if instr == 2:
+            t1 = getVal(tape, mode%10, rel, c+1)
+            mode //= 10
+            t2 = getVal(tape, mode%10, rel, c+2)
+            mode //= 10
+            addr = getAddr(tape, mode, rel, c+3)
+            tape[addr] = t1 * t2
+            ##print("Op2:", t1, t2, tape[c+3])
+            c += 4
+        if instr == 3:
+            addr = getAddr(tape, mode, rel, c+1)
+            ##print("Get input:", mode, rel, addr)
+            tape[addr] = fnGetInput()
+            c += 2
+        if instr == 4:
+            s = getVal(tape, mode, rel, c+1)
+            c += 2
+            fnSetOutput(s)
+            #print(s)
+        if instr == 5:
+            s = getVal(tape, mode%10, rel, c+1)
+            mode //= 10
+            t = getVal(tape, mode, rel, c+2)
+            c = t if s else (c + 3)
+        if instr == 6:
+            s = getVal(tape, mode%10, rel, c+1)
+            mode //= 10
+            t = getVal(tape, mode, rel, c+2)
+            c = t if s == 0 else (c + 3)
+        if instr == 7:
+            s = getVal(tape, mode%10, rel, c+1)
+            mode //= 10
+            t = getVal(tape, mode%10, rel, c+2)
+            mode //= 10
+            addr = getAddr(tape, mode, rel, c+3)
+            ##print("Op7:", s, t)
+            tape[addr] = s < t
+            c += 4
+        if instr == 8:
+            s = getVal(tape, mode%10, rel, c+1)
+            mode //= 10
+            t = getVal(tape, mode%10, rel, c+2)
+            mode //= 10
+            addr = getAddr(tape, mode, rel, c+3)
+            tape[addr] = s == t
+            c += 4
+        if instr == 9:
+            rel += getVal(tape, mode, rel, c+1)
+            c += 2
+    return
+
+def formatTape(fileName):
+    tape = []
+    with fileinput.input(fileName) as f:
+        code = f.readline()
+        tape = [int(c) for c in code.split(",")]
+    ## May consider making the tape length dynamic
+    tape += [0 for i in range(len(tape)*10)]
+    return tape
+
+def day1(fileName):
+    fuel    = 0
+    with fileinput.input(fileName) as f:
         for line in f:
-            modules.append(int(line))
-    fuel_plain = sum(map(fuel_given, modules))
-    fuel_recurse = sum(map(total_fuel_given, modules))
+            addFuel = fuelRequired(int(line))
+            ##addFuel = int(line)//3 - 2
+            ##print("Fuel added: ", addFuel)
+            fuel += addFuel
+    print("Total Fuel: ", fuel)
 
-    print(f"[Part1] Fuel Required: {fuel_plain}")
-    print(f"[Part2] Total Fuel: {fuel_recurse}")
-
-def day2() -> None:
-    computer = IntcodeComputer(elves.format_tape())
-    n = 99
-    input_range = [i for i in range(n)]
-    desired_output = 19690720
-    for n, v in zip(input_range, input_range):
-        output = computer.run(noun=n, verb=v)
-        if output == desired_output:
-            print(f"100*noun + verb: {100*n + v}")
-            return
-    assert False
-
+## ---> No longer works due to changes to intMachine
+##def day2(fileName):
+##    intMachine(formatTape(fileName), [5])
 
 def day3(fileName):
     with fileinput.input(fileName) as f:
@@ -1224,7 +1299,7 @@ def main():
     #fileName = "day16-input.txt"
     #instrFile = "day25-instruct.txt"
     #fileName = "test.txt"
-    day1()
+    day22()
 
 if __name__ == "__main__":
     main()
