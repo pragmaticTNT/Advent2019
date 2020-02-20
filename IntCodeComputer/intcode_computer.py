@@ -38,6 +38,7 @@ class IntcodeComputer:
         verb: Optional[int] = None,
         get_input_fn: Optional[Callable[[], int]] = None,
         send_output_fn: Optional[Callable[[int], None]] = None,
+        continuous: Optional[bool] = 1,
     ) -> int:
         """
         Initialize memory, and reset the program counter; then run the program
@@ -50,40 +51,45 @@ class IntcodeComputer:
         Input and output are performed via the given functions (or stdin/stdout
         if unspecified).
         """
-        self._mem = _Memory(self._ORIGINAL_PROGRAM)
-        self._pc = 0
-        self._relative_base = 0
+        if self._pc is None:
+            self._mem = _Memory(self._ORIGINAL_PROGRAM)
+            self._pc = 0
+            self._relative_base = 0
 
-        if noun is not None:
-            self._mem[1] = noun
-        if verb is not None:
-            self._mem[2] = verb
+            if noun is not None:
+                self._mem[1] = noun
+            if verb is not None:
+                self._mem[2] = verb
 
-        def get_input() -> int:
-            return int(input("> "))
-        def send_output(val: int) -> None:
-            print(val)
-        self._get_input_fn = get_input_fn or get_input
-        self._send_output_fn = send_output_fn or send_output
+            def get_input() -> int:
+                return int(input("> "))
+            def send_output(val: int) -> None:
+                print(val)
+            self._get_input_fn = get_input_fn or get_input
+            self._send_output_fn = send_output_fn or send_output
 
         # Run until halted.
-        try:
-            while True:
-                self._step()
-        except _ProgramHalt:
-            pass
+        if continuous:
+            try:
+                while True:
+                    self._step()
+            except _ProgramHalt:
+                pass
 
-        return self._mem[0]
+            return self._mem[0]
+        else:
+            opcode, val = self._step()
+            while opcode != Instr.INPUT.opcode:
+                opcode, val = self._step()
+            return val
 
     def _step(self) -> None:
         """
         Execute one instruction and update the program counter.
         Throw _ProgramHalt if it was a halt instruction.
         """
-        ##print("--->", self._mem[self._pc])
         opcode = self._mem[self._pc] % 100  # Two right-most digits.
         param_modes = self._mem[self._pc] // 100  # Leading digits.
-        ##print("    ", opcode, param_modes)
 
         if opcode == Instr.HALT.opcode:
             () = self._consume_args(Instr.HALT, param_modes)
@@ -97,6 +103,7 @@ class IntcodeComputer:
         elif opcode == Instr.INPUT.opcode:
             target_pos, = self._consume_args(Instr.INPUT, param_modes)
             self._mem[target_pos] = self._get_input_fn()
+            return (opcode, self._mem[target_pos])
         elif opcode == Instr.OUTPUT.opcode:
             val, = self._consume_args(Instr.OUTPUT, param_modes)
             self._send_output_fn(val)
@@ -120,6 +127,7 @@ class IntcodeComputer:
         else:
             print("Unexpected opcode:", opcode)
             assert False
+        return (opcode, 0)
 
     def _consume_args(self, instr: Instruction, param_modes: int) -> List[int]:
         """
