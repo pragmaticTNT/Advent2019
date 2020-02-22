@@ -6,11 +6,10 @@ import os
 import random as rn
 clear = lambda: os.system('clear')
 
-from enum import Enum
 from typing import List, Dict, Tuple, Set
 
 import elves
-from intcode_computer.py import IntcodeComputer
+from intcode_computer import IntMachine
 
 class Node():
     def __init__(self, value):
@@ -74,24 +73,33 @@ def day1() -> None:
     with fileinput.input() as f:
         for line in f:
             modules.append(int(line))
-    fuel_plain = sum(map(fuel_given, modules))
-    fuel_recurse = sum(map(total_fuel_given, modules))
 
+    fuel_plain = sum(map(fuel_given, modules))
     print(f"[Part1] Fuel Required: {fuel_plain}")
+
+    fuel_recurse = sum(map(total_fuel_given, modules))
     print(f"[Part2] Total Fuel: {fuel_recurse}")
 
 def day2() -> None:
-    computer = IntcodeComputer(elves.format_tape())
-    n = 99
-    input_range = [i for i in range(n)]
-    desired_output = 19690720
-    for n, v in zip(input_range, input_range):
-        output = computer.run(noun=n, verb=v)
-        if output == desired_output:
-            print(f"100*noun + verb: {100*n + v}")
-            return
-    assert False
+    program = elves.read_program()
 
+    prg_copy = program[:]
+    computer = IntMachine(prg_copy, noun = 12, verb = 2)
+    output = computer.run()
+    print(f"[Part1] noun-12, verb-2: {output}")
+
+    nMax = 100
+    desired_output = 19690720
+    for n in range(nMax):
+        for v in range(nMax):
+            prg_copy = program[:]
+            computer = IntMachine(prg_copy, noun = n, verb = v)
+            output = computer.run()
+            #print(f"{n}, {v}: {output}")
+            if output == desired_output:
+                print(f"[Part2] 100*noun + verb: {100*n + v}")
+                return
+    assert False
 
 def day3(fileName):
     with fileinput.input(fileName) as f:
@@ -205,6 +213,23 @@ def day4():
                 count += 1
     print(count)
 
+def day5():
+    program = elves.read_program()
+
+    def get_input_1():
+        return 1
+    prg_copy = program[:]
+    computer = IntMachine(prg_copy, fn_get_input = get_input_1)
+    print("[Part 1] Diagnostics with input 1")
+    output = computer.run()
+
+    def get_input_5():
+        return 5
+    prg_copy = program[:]
+    computer = IntMachine(prg_copy, fn_get_input = get_input_5)
+    print("[Part 2] Diagnostics with input 5")
+    output = computer.run()
+
 def day6(fileName):
     system = []
     with fileinput.input(fileName) as f:
@@ -260,10 +285,22 @@ def day8(fileName):
     for row in [img[25*i:25*i+25] for i in range(6)]:
         print("".join(row))
 
-def day9(fileName):
-    tape = formatTape(fileName)
-    tape += [0 for i in range(len(tape)*100)]
-    intMachine(tape, [2])
+def day9():
+    program = elves.read_program()
+
+    def get_input_1():
+        return 1
+    prg_copy = program[:]
+    computer = IntMachine(prg_copy, fn_get_input = get_input_1)
+    print("[Part 1] Diagnostics with input 1")
+    output = computer.run()
+
+    def get_input_2():
+        return 2
+    prg_copy = program[:]
+    computer = IntMachine(prg_copy, fn_get_input = get_input_2)
+    print("[Part 2] Diagnostics with input 2")
+    output = computer.run()
 
 def gcdCoord(r,c):
     rcGcd = math.gcd(r, c)
@@ -749,31 +786,18 @@ def day16(fileName):
     ## ===> Part 2 <===
     print(lastM[0:8])
 
-def compress(string):
-    count = 1
-    compStr = ""
-    for i in range(len(string)-1):
-        if string[i] == string[i+1]:
-            count += 1
-        else:
-            compStr += str(count) if count>1 else string[i]
-            compStr += ','
-            count = 1
-    compStr += str(count) if count>1 else string[-1]
-    return compStr
-
-def getInstructions(fileName):
-    instr = ""
-    with fileinput.input(fileName) as f:
-        instr = "".join(f)
-    return instr
+def get_instructions(instr):
+    instr_str = ""
+    with fileinput.input(instr) as f:
+        instr_str = "".join(f)
+    return instr_str
 
 ASCII_MAX = 127
-class AsciiComputer():
+class AsciiComputer:
     def __init__(self, instr):
         self.instr = instr
         self.index = 0
-    def getInput(self):
+    def get_input(self) -> int:
         if self.index >= len(self.instr):
             self.instr = input("")
             self.instr += '\n'
@@ -781,17 +805,20 @@ class AsciiComputer():
         char   = ord(self.instr[self.index])
         self.index += 1
         return char
+    def set_output(self, val: int) -> None:
+        print(str(chr(val)), end="")
 
-def day17(fileName, instr=None):
-    tape = formatTape(fileName)
-    inputs = getInstructions(instr)
+
+def day17():
+    program = elves.read_program()
+    inputs = get_instructions("day17-instruct.txt")
 
     view = {}
     row, col = (0,0)
     start   = (row, col)
     ac      = AsciiComputer(inputs)
 
-    def fnSetOutput(val):
+    def fn_output(val):
         nonlocal row
         nonlocal col
         nonlocal start
@@ -804,9 +831,11 @@ def day17(fileName, instr=None):
             row += 1
             col = 0
         else:
-            print("Dirt", val)
+            print("[Part 2] Dirt:", val)
 
-    intMachine(tape, ac.getInput, fnSetOutput)
+    computer = IntMachine(program, fn_get_input = ac.get_input, fn_set_output =
+            fn_output)
+    computer.run()
     ##pMap(view, '.', None)
     ##align = 0
     ##for cell in view:
@@ -837,7 +866,7 @@ def day17(fileName, instr=None):
         r, c, f, command = move(r, c, f)
         commands += command
     ##pMap(view, '.', None)
-    commands = compress(commands)
+    commands = elves.compress(commands)
     ##print(commands)
 
 def day19(fileName):
@@ -902,7 +931,7 @@ def day20(fileName):
 
 def day21(fileName, instrName):
     tape    = formatTape(fileName)
-    instr   = getInstructions(instrName)
+    instr   = get_instructions(instrName)
     ac      = AsciiComputer(instr)
 
     def fnSetOutput(val):
@@ -912,23 +941,6 @@ def day21(fileName, instrName):
             print(f"Damage: {val}")
 
     intMachine(tape, ac.getInput, fnSetOutput)
-
-def extended_euclid(a: int, b:int) -> (int, int, int):
-    """
-    Computes gcd(a,b) and the Bezout coefficients s and t
-    where a*s + b*t = gcd(a,b).
-    """
-    r0, s0, t0 = a, 1, 0
-    r1, s1, t1 = b, 0, 1
-    while r1:
-        #print(f"({r0}, {s0}, {t0}) -> ({r1}, {s1}, {t1})")
-        q = r0//r1
-        rNew = r0 % r1
-        sNew = s0 - s1*q
-        tNew = t0 - t1*q
-        r0, s0, t0 = r1, s1, t1
-        r1, s1, t1 = rNew, sNew, tNew
-    return (r0, s0, t0)
 
 class Deck:
     def __init__(self, size: int):
@@ -1210,21 +1222,43 @@ def day24(fileName):
         nBugs += sum(temp)
     print("Total Bugs:", nBugs)
 
-def day25(fileName, instrName):
-    tape = formatTape(fileName)
-    inst = getInstructions(instrName)
-    ac   = AsciiComputer(inst)
+def augment_input(file_name) -> None:
+    items = ["dark matter",
+        "coin",
+        "whirled peas",
+        "fixed point",
+        "prime number",
+        "weather machine",
+        "astrolabe",
+        "antenna"]
 
-    def fnSetOutput(val):
-        print(str(chr(val)), end="")
+    with open(file_name, 'a') as f:
+        for i in range(2**len(items)):
+            mask = i
+            command = ""
+            for j in range(len(items)):
+                command = "take " if mask % 2 else "drop "
+                mask = mask >> 1
+                command += items[j]
+                print(command, file=f)
+            print("south", file=f)
+    print("File augmented!")
 
-    intMachine(tape, ac.getInput, fnSetOutput)
+def day25():
+    #program = elves.read_program()
+    #instr_name = "day25-instruct.txt"
+    #augment_input(instr_name)
+    #instruct = get_instructions(instr_name)
+    #ac = AsciiComputer(instruct)
+
+    #computer = IntMachine(program,
+    #        fn_get_input = ac.get_input,
+    #        fn_set_output = ac.set_output)
+    #computer.run()
+    print("[Part 1] Airlock Password: 2622472")
 
 def main():
-    #fileName = "day16-input.txt"
-    #instrFile = "day25-instruct.txt"
-    #fileName = "test.txt"
-    day1()
+    day25()
 
 if __name__ == "__main__":
     main()

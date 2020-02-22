@@ -2,13 +2,26 @@ east
 take whirled peas
 north
 take coin
+west
+south
+take antenna
+north
+north
+west
+take astrolabe
+east
+south
+east
+south
 east
 north
 take prime number
 south
 east
 east
+east
 take dark matter
+west
 west
 west
 west
@@ -18,5 +31,8 @@ take fixed point
 north
 take weather machine
 east
-[]
-
+drop dark matter
+drop coin
+drop weather machine
+drop astrolabe
+south
